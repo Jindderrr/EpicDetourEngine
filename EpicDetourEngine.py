@@ -15,6 +15,8 @@ fisheye = False
 
 clock = pygame.time.Clock()
 ActiveCamera = None
+walls = []
+DrowDistance = 1000
 
 def RotationToVector(angle):
     angle -= 270
@@ -65,6 +67,13 @@ def WallBox(Location=(0, 0), a=1, color=(0, 0, 0)): # создаёт куб из
     walls.append(Wall(((Location[0] + a / 2, Location[1] - a / 2), (Location[0] - a / 2, Location[1] - a / 2)), color))
     walls.append(Wall(((Location[0] - a / 2, Location[1] - a / 2), (Location[0] - a / 2, Location[1] + a / 2)), color))
     return walls
+
+def VectorNormalize(a=(0, 0), b=None):
+    if b is None:
+        b = a[1]
+        a = a[0]
+    ln = math.sqrt(a ** 2 + b ** 2)
+    return (a / ln, b / ln)
 
 class Item():
     def __init__(self, PointsLocation=(0, 0), Rotation = 0, Walls=[]):
@@ -139,16 +148,6 @@ class Base_FirstPersonCharacter():
         if pygame.key.get_pressed()[pygame.K_PERIOD]:
             ActiveCamera.Rotation += 300 * DeltaSeconds
 
-wall1 = Wall(PointsLocation=((-2, 2), (5, 2)))
-wall2 = Wall(PointsLocation=((5, 2), (5, -0.2)), Color=(0, 100, 0))
-wall3 = Wall(PointsLocation=((5, -0.2), (4.8, -0.2)), Color=(190, 45, 0))
-wall4 = Wall(PointsLocation=((4.8, -0.2), (4.8, -1.5)), Color=(200, 50, 0))
-wall5 = Wall(PointsLocation=((-2, 2), (-2, -1)), Color=(0, 0, 0))
-walls = [wall1, wall2, wall3, wall4, wall5]
-for i in range(0):
-    walls.append(Wall(PointsLocation=((-1, 2), (-1, -1)), Color=(0, 0, 0)))
-DrowDistance = 1000
-
 def raycasting():
     r = ActiveCamera.FOV / (render_width - 1)
     screen.fill("white")
@@ -175,7 +174,7 @@ def raycasting():
         lines_to_print.sort(key=lambda x: x[0])
         for line in lines_to_print:
             try:
-                screen.fill(line[1], (screen_width - line[2] * size - 1, int(((screen_height - line[0]) / 2) / size) * size, size, line[0]))
+                screen.fill(line[1], (screen_width - line[2] * size - 1, ((screen_height - line[0]) / 2), size, line[0]))
             except BaseException:
                 ...
 
