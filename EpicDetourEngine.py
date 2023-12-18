@@ -1,4 +1,4 @@
-# Epic Detour Engine version 0.3.0 by Maxim Slizkov
+# Epic Detour Engine version 0.3.1 by Maxim Slizkov
 
 import pygame
 import sys
@@ -12,9 +12,16 @@ pygame.init()
 screen_width = 800
 screen_height = 600
 size = 3
+
+FullScreen = False
+if FullScreen:
+    screen = pygame.display.set_mode((0, 0), FullScreen)
+    screen_width = screen.get_width()
+    screen_height = screen.get_height()
+else:
+    screen = pygame.display.set_mode((screen_width, screen_height))
 render_width = int(screen_width / size)
 render_height = int(screen_height / size)
-screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("EpicDetourEngine")
 fisheye = True
 number_of_threads = 4
@@ -33,8 +40,9 @@ MinFPS = 15
 max_size = 8
 min_size = 1
 auto_size = True
-texture_onecolor_dist = 12
+texture_onecolor_dist = 20
 AllTrackers = []
+TextureQuality = 1
 
 class Material():
     def __init__(self, color=(200, 230, 240), use_onecolor_texture=True, use_texture_opacity=False, opacity=1, ):
@@ -60,6 +68,8 @@ class Material():
                 b = round(b / np)
                 self.onecolor = (r, g, b)
                 #print(r, g, b)
+            if TextureQuality != 1:
+                self.color = pygame.transform.scale(self.color, (self.color.get_width() // TextureQuality, self.color.get_height() // TextureQuality))
 
 CLASSIC_MATERIAL = Material((200,230,240))
 def RotationToVector(angle):
@@ -137,6 +147,9 @@ class WallCollision():
         self.Location2X = PointsLocation[1][0]
         self.Location2Y = PointsLocation[1][1]
 
+    def getPointsLocation(self):
+        return ((self.Location1X,self.Location1Y), (self.Location2X, self.Location2X))
+
 def CircleCollisionMove(CircleLocation=(0, 0), r=0.4, MoveVector= (0, 0)):
     print("sadsa")
     print(MoveVector)
@@ -181,7 +194,8 @@ def CircleCollisionMove(CircleLocation=(0, 0), r=0.4, MoveVector= (0, 0)):
 
 class SpriteFaceToCamera():
     def __init__(self, a=1, Height=2, OriginLocation=(0, 0), LocationZ=0, Material=CLASSIC_MATERIAL):
-        self.OriginLocation = OriginLocation
+        self.LocationX = OriginLocation[0]
+        self.LocationY = OriginLocation[1]
         self.Height = Height
         if type(Material.color) != tuple:
             a = Material.color.get_height() / Material.color.get_width()
@@ -189,14 +203,16 @@ class SpriteFaceToCamera():
         self.a = a
         self.surface = Wall(((-a/2 + OriginLocation[0], 0 + OriginLocation[1]),(a/2 + OriginLocation[0], 0 + OriginLocation[1])), Height, Material=Material, LocationZ=LocationZ)
         AllSpriteFaceToCamera.append(self)
+        self.LocationZ = LocationZ
 
     def EventTick(self):
         if type(ActiveCamera) == Camera:
-            r = FindLookAtRotation(self.OriginLocation, ActiveCamera.getLocation())
-            p1 = RotatePointAroundPoint(self.OriginLocation, (-self.a/2, 0), r)
+            OriginLocation = (self.LocationX, self.LocationY)
+            r = FindLookAtRotation(OriginLocation, ActiveCamera.getLocation())
+            p1 = RotatePointAroundPoint(OriginLocation, (-self.a/2, 0), r)
             self.surface.Location1X = p1[0]
             self.surface.Location1Y = p1[1]
-            p2 = RotatePointAroundPoint(self.OriginLocation, (self.a / 2, 0), r)
+            p2 = RotatePointAroundPoint(OriginLocation, (self.a / 2, 0), r)
             self.surface.Location2X = p2[0]
             self.surface.Location2Y = p2[1]
 
@@ -269,7 +285,7 @@ def OpenOBJAsMap(file_path, materials={}):
                         elif pn[0] == 'wallbox':
                             current_item.append(WallBox((float(string.split()[1]), -float(string.split()[3])), float(pn[1]), float(pn[2]), materials[pn[3]]))
                         elif pn[0] == 'sprite':
-                            current_item.append(WallBox((float(string.split()[1]), -float(string.split()[3])), float(pn[1]), float(pn[2]), materials[pn[3]]))
+                            current_item.append(SpriteFaceToCamera(a=float(pn[1]), Height=float(pn[2]), OriginLocation=(float(string.split()[1]), -float(string.split()[3])), LocationZ=float(pn[3]), Material=materials[pn[4]]))
                         else:
                             rs.append((pn, (float(string.split()[1]), -float(string.split()[3]))))
                     elif string[0] == "l":
@@ -278,7 +294,7 @@ def OpenOBJAsMap(file_path, materials={}):
     return rs
 
 class Actor():
-    def __init__(self, originLocation=(0, 0), LocationZ=0, Rotation=0, Elements={}, GenerateEventTick=True, EventTickAfterRendering=False):
+    def __init__(self, originLocation=(0, 0), LocationZ=0, Rotation=0, Elements={}, GenerateEventTick=True, GenerateEventTickAfterRendering=False):
         self.LocationX = originLocation[0]
         self.LocationY = originLocation[1]
         self.LocationZ = LocationZ
@@ -286,16 +302,24 @@ class Actor():
         self.AllElements = {}
         self.add(Elements)
         if GenerateEventTick:
-            EventTick.connection_functions.append(self.EventTick)
-        if EventTickAfterRendering:
-            EventTick.connection_functions_after_rendering.append(self.EventTickAfterRendering)
+            try:
+                EventTick.connection_functions.append(self.EventTick)
+            except BaseException as e:
+                print(e)
+        if GenerateEventTickAfterRendering:
+            try:
+                EventTick.connection_functions_after_rendering.append(self.EventTickAfterRendering)
+            except BaseException as e:
+                print(e)
 
     def add(self, Elements):
         for elem in Elements:
-            if type(Elements[elem]) == Item:
+            if type(Elements[elem]) in (Item, Camera):
                 self.AllElements[elem] = [Elements[elem], (Elements[elem].LocationX, Elements[elem].LocationY, Elements[elem].LocationZ, Elements[elem].Rotation)]
             elif type(Elements[elem]) == InBoxDetector:
                 self.AllElements[elem] = [Elements[elem], (Elements[elem].LocationX, Elements[elem].LocationY, Elements[elem].Rotation)]
+            elif type(Elements[elem]) == SpriteFaceToCamera:
+                self.AllElements[elem] = [Elements[elem], (Elements[elem].LocationX, Elements[elem].LocationY, Elements[elem].LocationZ)]
             elif type(Elements[elem]) == Tracker:
                 self.AllElements[elem] = [Elements[elem], (Elements[elem].LocationX, Elements[elem].LocationY)]
 
@@ -313,9 +337,9 @@ class Actor():
             self.LocationY = b
 
     def setElementLocalLocation(self, name, Location = (0, 0)):
-        if type(self.AllElements[name][0]) == Item:
+        if type(self.AllElements[name][0]) in (Item, Camera):
             self.AllElements[name][1] = (Location[0], Location[1], self.AllElements[name][1][2], self.AllElements[name][1][3])
-        elif type(self.AllElements[name][0]) == InBoxDetector:
+        elif type(self.AllElements[name][0]) in (InBoxDetector, SpriteFaceToCamera):
             self.AllElements[name][1] = (Location[0], Location[1], self.AllElements[name][1][2])
         elif type(self.AllElements[name][0]) == Tracker:
             self.AllElements[name][1] = (Location[0], Location[1])
@@ -339,16 +363,21 @@ class Actor():
             elemX = self.AllElements[elem][1][0] + self.LocationX
             elemY = self.AllElements[elem][1][1] + self.LocationY
             elemX, elemY = RotatePointAroundPoint(self.getLocation(), (self.AllElements[elem][1][0], self.AllElements[elem][1][1]), self.Rotation)
-            if type(self.AllElements[elem][0]) == Item:
+            if type(elemRef) in (Item, Camera):
                 elemRef.LocationX = elemX
                 elemRef.LocationY = elemY
                 elemRef.LocationZ = self.AllElements[elem][1][2] + self.LocationZ
                 elemRef.Rotation = self.Rotation
-                elemRef.Update()
-            elif type(self.AllElements[elem][0]) == InBoxDetector:
+                if type(elemRef) == Item:
+                    elemRef.Update()
+            elif type(elemRef) == InBoxDetector:
                 elemRef.LocationX = elemX
                 elemRef.LocationY = elemY
                 elemRef.Rotation = self.Rotation
+            elif type(elemRef) == SpriteFaceToCamera:
+                elemRef.LocationX = elemX
+                elemRef.LocationY = elemY
+                elemRef.LocationZ = self.AllElements[elem][1][2] + self.LocationZ
             elif type(self.AllElements[elem][0]) == Tracker:
                 elemRef.LocationX = elemX
                 elemRef.LocationY = elemY
@@ -375,33 +404,56 @@ class InBoxDetector():
                 all_in.append(tracker)
         return all_in
 
-class Base_FirstPersonCharacter():
-    def __init__(self):
-        self.camera = Camera((0, 0), 0, 90, 1.65)
-        global ActiveCamera
-        ActiveCamera = self.camera
-        EventTick.connection_functions.append(self.tick)
+class Base():
+    class Character(Actor):
+        def __init__(self, originLocation=(0, 0), GenerateEventTickAfterRendering=False):
+            super().__init__(originLocation=originLocation, GenerateEventTickAfterRendering=GenerateEventTickAfterRendering)
+            self.RightMove = 0
+            self.ForwardMove = 0
+            self.MoveVector = [0, 1]
 
-    def tick(self):
-        forward_vector = RotationToVector(self.camera.Rotation)
-        forward_vector = [forward_vector[0] * WorldDeltaSeconds * 3, forward_vector[1] * WorldDeltaSeconds * 3]
-        right_vector = RotationToVector(self.camera.Rotation - 90)
-        right_vector = [right_vector[0] * WorldDeltaSeconds * 2, right_vector[1] * WorldDeltaSeconds * 2]
-        if pygame.key.get_pressed()[pygame.K_w]:
-            #v = CircleCollisionMove(self.camera.getLocation(), MoveVector=(forward_vector[0], forward_vector[1]))
-            ActiveCamera.LocationX += forward_vector[0]
-            ActiveCamera.LocationY += forward_vector[1]
-        if pygame.key.get_pressed()[pygame.K_s]:
-            ActiveCamera.LocationX -= forward_vector[0]
-            ActiveCamera.LocationY -= forward_vector[1]
-        if pygame.key.get_pressed()[pygame.K_d]:
-            ActiveCamera.LocationX += right_vector[0]
-            ActiveCamera.LocationY += right_vector[1]
-        if pygame.key.get_pressed()[pygame.K_a]:
-            ActiveCamera.LocationX -= right_vector[0]
-            ActiveCamera.LocationY -= right_vector[1]
-        ActiveCamera.Rotation += (screen.get_width() // 2 - pygame.mouse.get_pos()[0]) / 12
-        pygame.mouse.set_pos((screen.get_width() // 2, screen.get_height() // 2))
+        def EventTick(self):
+            cs = 30
+            self.LocationX += self.MoveVector[0] * WorldDeltaSeconds
+            self.LocationY += self.MoveVector[1] * WorldDeltaSeconds
+            for n in range(2):
+                if self.MoveVector[n] > 0:
+                    self.MoveVector[n] -= WorldDeltaSeconds * cs
+                    if self.MoveVector[n] < 0:
+                        self.MoveVector[n] = 0
+                elif self.MoveVector[n] < 0:
+                    self.MoveVector[n] += WorldDeltaSeconds * cs
+                    if self.MoveVector[n] > 0:
+                        self.MoveVector[n] = 0
+            self.Update()
+
+    class FirstPersonCharacter(Character):
+        def __init__(self):
+            self.camera = Camera((0, 0), 0, 90, 1.65)
+            global ActiveCamera
+            ActiveCamera = self.camera
+            super().__init__(GenerateEventTickAfterRendering=True)
+            self.add({'camera': self.camera})
+        def EventTick(self):
+            fs = 4
+            rs = 3
+            forward_vector = RotationToVector(self.camera.Rotation)
+            forward_vector = [forward_vector[0] * fs, forward_vector[1] * fs]
+            right_vector = RotationToVector(self.camera.Rotation - 90)
+            right_vector = [right_vector[0] * rs, right_vector[1] * rs]
+            if pygame.key.get_pressed()[pygame.K_w]:
+                # v = CircleCollisionMove(self.camera.getLocation(), MoveVector=(forward_vector[0], forward_vector[1]))
+                self.MoveVector = [forward_vector[0], forward_vector[1]]
+            if pygame.key.get_pressed()[pygame.K_s]:
+                self.MoveVector = [-forward_vector[0], -forward_vector[1]]
+            if pygame.key.get_pressed()[pygame.K_d]:
+                self.MoveVector = [right_vector[0], right_vector[1]]
+            if pygame.key.get_pressed()[pygame.K_a]:
+                self.MoveVector = [-right_vector[0], -right_vector[1]]
+            self.Rotation += (screen.get_width() // 2 - pygame.mouse.get_pos()[0]) / 12
+            pygame.mouse.set_pos((screen.get_width() // 2, screen.get_height() // 2))
+            super().EventTick()
+
 def LinePrint(ray_rotation, r, walls_for_render=None):
     if not fisheye:
         distance_to_screen = 1 / math.cos(math.radians(abs(ray_rotation * r - ActiveCamera.FOV/2)))
@@ -417,7 +469,7 @@ def LinePrint(ray_rotation, r, walls_for_render=None):
             x, y = IntersectionPoint(obj.getPointsLocation(), (ActiveCamera.LocationX, ActiveCamera.LocationY, ray_vector[0], ray_vector[1]))
             dist = math.sqrt((x - ActiveCamera.LocationX) ** 2 + (y - ActiveCamera.LocationY) ** 2)
             if dist != 0:
-                sizeZ = (obj.height / dist) * distance_to_screen * 500
+                sizeZ = (obj.height / dist) * distance_to_screen * 0.66 * screen_width
                 lines_to_print.append((sizeZ, obj.Material, ray_rotation, (x - obj.getPointsLocation()[0][0], y - obj.getPointsLocation()[0][1]), obj, dist))
 
     lines_to_print.sort(key=lambda x: -x[5])
@@ -501,6 +553,13 @@ def IntersectionPoint(line_segment, ray):
             y = y1 + (y2 - y1) * t1
             return (x, y)
 
+def LineTrace(StartLocation, EndLocation):
+    walls = []
+    for wall_collision in AllWalls:
+        p = IntersectionPoint(wall_collision.getPointsLocation(), (*StartLocation, *EndLocation))
+        if p != None:
+            walls.append((wall_collision, p))
+    return walls
 
 class EventTickClass:
     def __init__(self):

@@ -1,12 +1,13 @@
 # Tech Demo of Epic Detour Engine
 
 import EpicDetourEngine as engine
-import pygame
+import pygame, random
 
 bricksM1 = engine.Material("textures/texture1.png")
 bricksM2 = engine.Material("textures/texture4.jpg")
 steelM3 = engine.Material("textures/texture3.jpg")
 smalltilesM4 = engine.Material("textures/texture7.png")
+lamp0 = engine.Material("textures/lamp0.png")
 
 class door(engine.Actor):
     def __init__(self, originLocation=(0, 0), LocationZ=0, Height=3, Rotation=0, thickness=0.25, a=2, Material=engine.CLASSIC_MATERIAL, da=2):
@@ -41,7 +42,56 @@ class door(engine.Actor):
             self.setElementLocalLocation('door', (self.door_dx, 0))
         self.Update()
 
-player = engine.Base_FirstPersonCharacter()
+
+class enemy(engine.Base.Character):
+    def __init__(self, originLocation=(0, 0)):
+        self.te = [engine.Material("textures/texture6.png"), engine.Material("textures/texture6st.png")]
+        ftc = engine.SpriteFaceToCamera(Height=2, Material=self.te[0])
+        super().__init__(originLocation=originLocation)
+        self.add({'ftc': ftc})
+        self.fire = False
+        self.tls = -1
+
+
+    def EventTick(self):
+        lt = engine.LineTrace(self.getLocation(), player.getLocation())
+        b = False
+        for w in lt:
+            if w[0] != self.getElem('ftc')[0].surface:
+                b = True
+                #print(w[0].getPointsLocation())
+                #print(self.getElem('ftc')[0].surface.getPointsLocation())
+        if not b:
+            self.fire = True
+        else:
+            self.tls = -0.2
+        self.tls += engine.WorldDeltaSeconds
+        if self.tls > 0.05:
+            self.getElem('ftc')[0].surface.Material = self.te[0]
+        if self.fire and self.tls > 0.2:
+            player.hp -= random.randint(2, 5)
+            self.tls = 0
+            self.getElem('ftc')[0].surface.Material = self.te[1]
+        super().EventTick()
+
+class player(engine.Base.FirstPersonCharacter):
+    def __init__(self):
+        super().__init__()
+        self.gun = pygame.image.load("textures/gun1.png")
+        self.gun = pygame.transform.scale(self.gun, (400, 300))
+        self.gun = pygame.transform.scale(self.gun, (800, 600))
+        self.hp = 100
+        tr = engine.Tracker(("player"))
+        self.add({'tracker': tr})
+
+    def EventTickAfterRendering(self):
+        engine.screen.blit(self.gun, (0, 0))
+        font = pygame.font.Font(None, 56)
+        text = font.render(str(self.hp), True, (255, 50, 50))
+        engine.screen.blit(text, (10, engine.screen_height - 55))
+
+player = player()
+e1 = enemy((-4, 8))
 i = engine.Item((2, 0.5))
 #wall1 = engine.Wall(((0.2, 0.2), (0.2, -0.2)), 3,engine.Material((100, 100, 100)))
 #wall2 = engine.Wall(((0.2, -0.2), (-0.2, -0.2)), 3, engine.Material((150, 150, 150)))
@@ -75,25 +125,19 @@ i = engine.Item((2, 0.5))
 # engine.Wall(PointsLocation=((-2, -10), (-4.5, -10)), height=3, Material=bricksM2)
 # engine.Wall(PointsLocation=((-7, -10), (-5.5, -10)), height=3, Material=bricksM2)
 # engine.Wall(PointsLocation=((-7, -10), (-7, -5)), height=3, Material=bricksM2)
-mat = {'bricksM1': bricksM1, 'bricksM2': bricksM2, 'smalltilesM4': smalltilesM4, 'steelM3': steelM3}
+mat = {'bricksM1': bricksM1, 'bricksM2': bricksM2, 'smalltilesM4': smalltilesM4, 'steelM3': steelM3, 'lamp0': lamp0}
 r = engine.OpenOBJAsMap("./maps/map1.obj", mat)
 for ue in r:
     if ue[0][0] == 'door1':
-        print(ue[0])
-        print(float(ue[0][1]))
         door(ue[1], float(ue[0][1]), float(ue[0][2]), float(ue[0][3]), float(ue[0][4]), float(ue[0][5]), mat[ue[0][6]], float(ue[0][7]))
 
 tr = engine.Tracker(("player",))
 def EventTick(): # эта функция, которая срабатывает каждый кадр, до отрисовки
-    # print("tick:", engine.clock.get_fps())
-    tr.LocationX = engine.ActiveCamera.LocationX
-    tr.LocationY = engine.ActiveCamera.LocationY
+    pass
 
 
 def EventTickAfterRendering(): # эта функция, которая срабатывает каждый кадр, после отрисовки
-    gun = pygame.image.load("textures/gun0.png")
-    gun = pygame.transform.scale(gun, (320, 400))
-    engine.screen.blit(gun, (engine.screen_width / 2 - 160, 300))
+    pass
 
 
 engine.EventTick.connection_functions.append(EventTick) # делаем так,что-бы EventTick() вызывался каждый кадр, до отрисовки
