@@ -2,6 +2,7 @@
 
 import EpicDetourEngine as engine
 import pygame, random
+import numpy as np
 
 bricksM1 = engine.Material("textures/texture1.png")
 bricksM2 = engine.Material("textures/texture4.jpg")
@@ -12,9 +13,9 @@ lamp0 = engine.Material("textures/lamp0.png")
 class door(engine.Actor):
     def __init__(self, originLocation=(0, 0), LocationZ=0, Height=3, Rotation=0, thickness=0.25, a=2, Material=engine.CLASSIC_MATERIAL, da=2):
         door = engine.Item()
-        door.addWall(engine.Wall(((0, thickness / 2), (a, thickness / 2)), height=Height, Material=Material))
-        door.addWall(engine.Wall(((0, -thickness / 2), (a, -thickness / 2)), height=Height, Material=Material))
-        door.addWall(engine.Wall(((a, thickness / 2), (a, -thickness / 2)), height=Height, Material=Material))
+        door.addWall(engine.Wall(((0, thickness / 2), (a, thickness / 2)), height=Height, Material=Material, collision=False))
+        door.addWall(engine.Wall(((0, -thickness / 2), (a, -thickness / 2)), height=Height, Material=Material, collision=False))
+        door.addWall(engine.Wall(((a, thickness / 2), (a, -thickness / 2)), height=Height, Material=Material, collision=False))
         super().__init__(originLocation, LocationZ, Rotation, {'door': door})
         ibd = engine.InBoxDetector((a/2, 0), (a, 7))
         self.add({'detctor': ibd})
@@ -45,53 +46,84 @@ class door(engine.Actor):
 
 class enemy(engine.Base.Character):
     def __init__(self, originLocation=(0, 0)):
-        self.te = [engine.Material("textures/texture6.png"), engine.Material("textures/texture6st.png")]
-        ftc = engine.SpriteFaceToCamera(Height=2, Material=self.te[0])
+        self.te = [engine.Material("textures/texture6.png"), engine.Material("textures/texture6st.png"), engine.Material("textures/texture6d1-1.png"), engine.Material("textures/texture6df1.png")]
+        ftc = engine.SpriteFaceToCamera(Height=2, Material=self.te[0], collision=True)
         super().__init__(originLocation=originLocation)
         self.add({'ftc': ftc})
         self.fire = False
         self.tls = -1
+        self.hp = 100
 
 
     def EventTick(self):
-        lt = engine.LineTrace(self.getLocation(), player.getLocation())
+        lt = engine.LineTrace(self.getLocation(), player.getLocation(), engine.AllWallCollision)
         b = False
         for w in lt:
-            if w[0] != self.getElem('ftc')[0].surface:
+            if w[0] != self.getElem('ftc')[0].c_surface:
                 b = True
-                #print(w[0].getPointsLocation())
-                #print(self.getElem('ftc')[0].surface.getPointsLocation())
-        if not b:
-            self.fire = True
+        if self.hp > 25:
+            if not b:
+                self.fire = True
+            else:
+                self.tls = -0.2
+            self.tls += engine.WorldDeltaSeconds
+            if self.tls > 0.05:
+                self.getElem('ftc')[0].surface.Material = self.te[0]
+            if self.fire and self.tls > 0.2:
+                player.hp -= random.randint(2, 4)
+                self.tls = 0
+                self.getElem('ftc')[0].surface.Material = self.te[1]
         else:
-            self.tls = -0.2
-        self.tls += engine.WorldDeltaSeconds
-        if self.tls > 0.05:
-            self.getElem('ftc')[0].surface.Material = self.te[0]
-        if self.fire and self.tls > 0.2:
-            player.hp -= random.randint(2, 5)
-            self.tls = 0
-            self.getElem('ftc')[0].surface.Material = self.te[1]
+            if self.hp > 0:
+                self.getElem('ftc')[0].surface.Material = self.te[2]
+                self.hp -= engine.WorldDeltaSeconds * 3
+            else:
+                self.getElem('ftc')[0].surface.Material = self.te[3]
         super().EventTick()
 
 class player(engine.Base.FirstPersonCharacter):
     def __init__(self):
         super().__init__()
-        self.gun = pygame.image.load("textures/gun1.png")
-        self.gun = pygame.transform.scale(self.gun, (400, 300))
-        self.gun = pygame.transform.scale(self.gun, (800, 600))
+        GunSize = 4
+        self.gun = pygame.image.load("textures/gun2_dg.png")
+        self.gun = pygame.transform.scale(self.gun, (self.gun.get_width() // GunSize, self.gun.get_height() // GunSize))
+        self.gun = pygame.transform.scale(self.gun, (engine.screen_width, engine.screen_height))
+        self.gunst = pygame.image.load("textures/gun2st_dg.png")
+        self.gunst = pygame.transform.scale(self.gunst, (self.gun.get_width() // GunSize, self.gun.get_height() // GunSize))
+        self.gunst = pygame.transform.scale(self.gunst, (engine.screen_width, engine.screen_height))
         self.hp = 100
         tr = engine.Tracker(("player"))
         self.add({'tracker': tr})
+        self.time_to_last_shot = 1
+
+    def _shot(self):
+        camera_v = engine.RotationToVector(self.getElem('camera')[0].Rotation)
+        camera_v = camera_v[0] * 100, camera_v[1] * 100
+        s = engine.LineTrace((self.LocationX, self.LocationY), camera_v, collide_walls=engine.AllWallCollision)
+        for en in AllEnemies:
+            if en.getElem('ftc')[0].c_surface == s[0][0]:
+                en.hp -= random.randint(20, 75)
+                if en.hp <= 0:
+                    engine.AllWallCollision.pop(engine.AllWallCollision.index(en.getElem('ftc')[0].c_surface))
 
     def EventTickAfterRendering(self):
-        engine.screen.blit(self.gun, (0, 0))
+        self.time_to_last_shot += engine.WorldDeltaSeconds
+        if pygame.mouse.get_pressed()[0] and self.time_to_last_shot > 0.35:
+            self.time_to_last_shot = 0
+            self._shot()
+        if self.time_to_last_shot < 0.2:
+            engine.screen.blit(self.gunst, (0, 0))
+        else:
+            engine.screen.blit(self.gun, (0, 0))
         font = pygame.font.Font(None, 56)
         text = font.render(str(self.hp), True, (255, 50, 50))
         engine.screen.blit(text, (10, engine.screen_height - 55))
 
 player = player()
-e1 = enemy((-4, 8))
+AllEnemies = []
+AllEnemies.append(enemy((-4, 8.5)))
+AllEnemies.append(enemy((-3.2, 10)))
+AllEnemies.append(enemy((-4, 22)))
 i = engine.Item((2, 0.5))
 #wall1 = engine.Wall(((0.2, 0.2), (0.2, -0.2)), 3,engine.Material((100, 100, 100)))
 #wall2 = engine.Wall(((0.2, -0.2), (-0.2, -0.2)), 3, engine.Material((150, 150, 150)))

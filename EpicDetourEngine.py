@@ -1,4 +1,4 @@
-# Epic Detour Engine version 0.3.1 by Maxim Slizkov
+# Epic Detour Engine version 0.3.2 by Maxim Slizkov
 
 import pygame
 import sys
@@ -109,7 +109,7 @@ class Camera():
             self.LocationY = b
 
 class Wall():
-    def __init__(self, PointsLocation=((-0.5, 0), (0.5, 0)), height=3, Material=CLASSIC_MATERIAL, LocationZ = 0, addToAllWalls=True):
+    def __init__(self, PointsLocation=((-0.5, 0), (0.5, 0)), height=3, Material=CLASSIC_MATERIAL, LocationZ = 0, addToAllWalls=True, collision=True):
         self.Location1X = PointsLocation[0][0]
         self.Location1Y = PointsLocation[0][1]
         self.Location2X = PointsLocation[1][0]
@@ -117,7 +117,8 @@ class Wall():
         self.Material = Material
         self.height = height
         self.LocationZ = LocationZ
-        AllWallCollision.append(WallCollision(PointsLocation=PointsLocation))
+        if collision:
+            AllWallCollision.append(WallCollision(PointsLocation=PointsLocation))
         if addToAllWalls:
             AllWalls.append(self)
 
@@ -148,7 +149,7 @@ class WallCollision():
         self.Location2Y = PointsLocation[1][1]
 
     def getPointsLocation(self):
-        return ((self.Location1X,self.Location1Y), (self.Location2X, self.Location2X))
+        return ((self.Location1X,self.Location1Y), (self.Location2X, self.Location2Y))
 
 def CircleCollisionMove(CircleLocation=(0, 0), r=0.4, MoveVector= (0, 0)):
     print("sadsa")
@@ -193,7 +194,7 @@ def CircleCollisionMove(CircleLocation=(0, 0), r=0.4, MoveVector= (0, 0)):
     return MoveVector
 
 class SpriteFaceToCamera():
-    def __init__(self, a=1, Height=2, OriginLocation=(0, 0), LocationZ=0, Material=CLASSIC_MATERIAL):
+    def __init__(self, a=1, Height=2, OriginLocation=(0, 0), LocationZ=0, Material=CLASSIC_MATERIAL, collision=False):
         self.LocationX = OriginLocation[0]
         self.LocationY = OriginLocation[1]
         self.Height = Height
@@ -201,7 +202,11 @@ class SpriteFaceToCamera():
             a = Material.color.get_height() / Material.color.get_width()
             a = Height/a
         self.a = a
-        self.surface = Wall(((-a/2 + OriginLocation[0], 0 + OriginLocation[1]),(a/2 + OriginLocation[0], 0 + OriginLocation[1])), Height, Material=Material, LocationZ=LocationZ)
+        self.surface = Wall(((-a/2 + OriginLocation[0], 0 + OriginLocation[1]), (a/2 + OriginLocation[0], 0 + OriginLocation[1])), Height, Material=Material, LocationZ=LocationZ, collision=False)
+        self.c_surface = None
+        if collision:
+            self.c_surface = WallCollision(((-a/2 + OriginLocation[0], 0 + OriginLocation[1]), (a/2 + OriginLocation[0], 0 + OriginLocation[1])))
+            AllWallCollision.append(self.c_surface)
         AllSpriteFaceToCamera.append(self)
         self.LocationZ = LocationZ
 
@@ -209,12 +214,19 @@ class SpriteFaceToCamera():
         if type(ActiveCamera) == Camera:
             OriginLocation = (self.LocationX, self.LocationY)
             r = FindLookAtRotation(OriginLocation, ActiveCamera.getLocation())
-            p1 = RotatePointAroundPoint(OriginLocation, (-self.a/2, 0), r)
+            p1 = RotatePointAroundPoint(OriginLocation, (-self.a / 2, 0), r)
             self.surface.Location1X = p1[0]
             self.surface.Location1Y = p1[1]
             p2 = RotatePointAroundPoint(OriginLocation, (self.a / 2, 0), r)
             self.surface.Location2X = p2[0]
             self.surface.Location2Y = p2[1]
+            if self.c_surface != None:
+                p1 = RotatePointAroundPoint(OriginLocation, (-self.a / 2, 0), r)
+                self.c_surface.Location1X = p1[0]
+                self.c_surface.Location1Y = p1[1]
+                p2 = RotatePointAroundPoint(OriginLocation, (self.a / 2, 0), r)
+                self.c_surface.Location2X = p2[0]
+                self.c_surface.Location2Y = p2[1]
 
 def VectorNormalize(a=(0, 0), b=None):
     if b is None:
@@ -224,12 +236,14 @@ def VectorNormalize(a=(0, 0), b=None):
     return (a / ln, b / ln)
 
 class Item():
-    def __init__(self, OriginLocation=(0, 0), LocationZ=0, Rotation=0, Walls=[]):
+    def __init__(self, OriginLocation=(0, 0), LocationZ=0, Rotation=0, Walls=[], collision=True):
         self.LocationX = OriginLocation[0]
         self.LocationY = OriginLocation[1]
         self.LocationZ = LocationZ
         self.Rotation = Rotation
         self.Walls = [[w, w.getPointsLocation(), w.LocationZ] for w in Walls]
+        if collision:
+            self.c_Walls = [[w, w.getPointsLocation(), w.LocationZ] for w in Walls]
 
     def setLocation(self, a=(0, 0), b=None):
         if b is None:
@@ -240,7 +254,7 @@ class Item():
             self.LocationY = b
 
     def Update(self):
-        for wall in self.Walls:
+        for wall in self.Walls + self.c_Walls:
             v = RotatePointAroundPoint((self.LocationX, self.LocationY), (wall[1][0][0], wall[1][0][1]), self.Rotation)
             wall[0].Location1X = v[0]
             wall[0].Location1Y = v[1]
@@ -248,6 +262,7 @@ class Item():
             wall[0].Location2X = v[0]
             wall[0].Location2Y = v[1]
             wall[0].LocationZ = self.LocationZ + wall[2]
+
 
     def Rotate(self, r=0):
         self.Rotation += r
@@ -258,15 +273,25 @@ class Item():
         self.LocationY += v[1]
         self.Update()
 
-    def addWall(self, wall, RelativeRotation=True):
+    def addWall(self, wall, RelativeRotation=True, collision=True):
         if RelativeRotation:
             self.Walls.append([wall, wall.getPointsLocation(), wall.LocationZ])
+            if collision:
+                cw = WallCollision(wall.getPointsLocation())
+                AllWallCollision.append(cw)
+                self.c_Walls.append([cw, wall.getPointsLocation(), wall.LocationZ])
         else:
             wall.Location1X = wall.getPointsLocation()[0][0] + self.LocationX
             wall.Location1Y = wall.getPointsLocation()[0][1] + self.LocationY
             wall.Location2X = wall.getPointsLocation()[1][0] + self.LocationX
             wall.Location2Y = wall.getPointsLocation()[1][1] + self.LocationY
             self.Walls.append([wall, wall.getPointsLocation(), wall.LocationZ])
+            cw = WallCollision(wall.getPointsLocation())
+            cw.Location1X = wall.getPointsLocation()[0][0] + self.LocationX
+            cw.Location1Y = wall.getPointsLocation()[0][1] + self.LocationY
+            cw.Location2X = wall.getPointsLocation()[1][0] + self.LocationX
+            cw.Location2Y = wall.getPointsLocation()[1][1] + self.LocationY
+            self.c_Walls.append([cw, wall.getPointsLocation(), wall.LocationZ])
 
 def OpenOBJAsMap(file_path, materials={}):
     with open(file_path) as file:
@@ -469,7 +494,7 @@ def LinePrint(ray_rotation, r, walls_for_render=None):
             x, y = IntersectionPoint(obj.getPointsLocation(), (ActiveCamera.LocationX, ActiveCamera.LocationY, ray_vector[0], ray_vector[1]))
             dist = math.sqrt((x - ActiveCamera.LocationX) ** 2 + (y - ActiveCamera.LocationY) ** 2)
             if dist != 0:
-                sizeZ = (obj.height / dist) * distance_to_screen * 0.66 * screen_width
+                sizeZ = (obj.height / dist) * distance_to_screen * 0.66 * screen_width / (ActiveCamera.FOV/90)
                 lines_to_print.append((sizeZ, obj.Material, ray_rotation, (x - obj.getPointsLocation()[0][0], y - obj.getPointsLocation()[0][1]), obj, dist))
 
     lines_to_print.sort(key=lambda x: -x[5])
@@ -553,9 +578,9 @@ def IntersectionPoint(line_segment, ray):
             y = y1 + (y2 - y1) * t1
             return (x, y)
 
-def LineTrace(StartLocation, EndLocation):
+def LineTrace(StartLocation, EndLocation, collide_walls=AllWalls):
     walls = []
-    for wall_collision in AllWalls:
+    for wall_collision in collide_walls:
         p = IntersectionPoint(wall_collision.getPointsLocation(), (*StartLocation, *EndLocation))
         if p != None:
             walls.append((wall_collision, p))

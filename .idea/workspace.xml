@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="cb6c2681-b02d-4463-8b52-4de56da18c2e" name="Changes" comment="Version 0.3.0">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="cb6c2681-b02d-4463-8b52-4de56da18c2e" name="Changes" comment="Version 0.3.1">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/EpicDetourEngine.py" beforeDir="false" afterPath="$PROJECT_DIR$/EpicDetourEngine.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/TechDemo.pyw" beforeDir="false" afterPath="$PROJECT_DIR$/TechDemo.pyw" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/maps/map1.blend" beforeDir="false" afterPath="$PROJECT_DIR$/maps/map1.blend" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/maps/map1.obj" beforeDir="false" afterPath="$PROJECT_DIR$/maps/map1.obj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/readme.txt" beforeDir="false" afterPath="$PROJECT_DIR$/readme.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -172,7 +168,14 @@
       <option name="project" value="LOCAL" />
       <updated>1702812822580</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Version 0.3.1">
+      <created>1702908731726</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1702908731726</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -217,6 +220,7 @@
     <MESSAGE value="Origine" />
     <MESSAGE value="Version 0.2" />
     <MESSAGE value="Version 0.3.0" />
-    <option name="LAST_COMMIT_MESSAGE" value="Version 0.3.0" />
+    <MESSAGE value="Version 0.3.1" />
+    <option name="LAST_COMMIT_MESSAGE" value="Version 0.3.1" />
   </component>
 </project>
