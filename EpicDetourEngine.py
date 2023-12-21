@@ -305,9 +305,8 @@ def OpenOBJAsMap(file_path, materials={}):
                 elif current_item != None:
                     pn = current_item[1].split("_")
                     if string[0] == "v":
-                        if pn[0] == 'wall':
-                            vertices.append((float(string.split()[1]), -float(string.split()[3])))
-                        elif pn[0] == 'wallbox':
+                        vertices.append((float(string.split()[1]), -float(string.split()[3])))
+                        if pn[0] == 'wallbox':
                             current_item.append(WallBox((float(string.split()[1]), -float(string.split()[3])), float(pn[1]), float(pn[2]), materials[pn[3]]))
                         elif pn[0] == 'sprite':
                             current_item.append(SpriteFaceToCamera(a=float(pn[1]), Height=float(pn[2]), OriginLocation=(float(string.split()[1]), -float(string.split()[3])), LocationZ=float(pn[3]), Material=materials[pn[4]]))
