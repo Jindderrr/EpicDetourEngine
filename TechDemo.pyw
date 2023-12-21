@@ -9,6 +9,11 @@ bricksM2 = engine.Material("textures/texture4.jpg")
 steelM3 = engine.Material("textures/texture3.jpg")
 smalltilesM4 = engine.Material("textures/texture7.png")
 lamp0 = engine.Material("textures/lamp0.png")
+exit1 = engine.Material("textures/texture9.png")
+gunonwall = engine.Material("textures/texture15m.jpg")
+betonM = engine.Material("textures/texture16.jpg")
+closedM1 = engine.Material("textures/texture17.jpg")
+canwall = engine.Material("textures/texture18.jpg")
 
 class door(engine.Actor):
     def __init__(self, originLocation=(0, 0), LocationZ=0, Height=3, Rotation=0, thickness=0.25, a=2, Material=engine.CLASSIC_MATERIAL, da=2):
@@ -26,6 +31,11 @@ class door(engine.Actor):
 
     def EventTick(self):
         all = [t.Tags for t in self.getElem('detctor')[0].AllInBox() if 'player' in t.Tags]
+        print("---")
+        print(all)
+        print(self)
+        print(self.open)
+
         if len(all) > 0: self.open = True
         else: self.open = False
 
@@ -47,6 +57,8 @@ class door(engine.Actor):
 class enemy(engine.Base.Character):
     def __init__(self, originLocation=(0, 0)):
         self.te = [engine.Material("textures/texture6.png"), engine.Material("textures/texture6st.png"), engine.Material("textures/texture6d1-1.png"), engine.Material("textures/texture6df1.png")]
+        # self.te = [engine.Material("textures/texture8.png"), engine.Material("textures/texture8.png"),
+        #            engine.Material("textures/texture6d1-1.png"), engine.Material("textures/texture6df1.png")]
         ftc = engine.SpriteFaceToCamera(Height=2, Material=self.te[0], collision=True)
         super().__init__(originLocation=originLocation)
         self.add({'ftc': ftc})
@@ -79,6 +91,8 @@ class enemy(engine.Base.Character):
                 self.hp -= engine.WorldDeltaSeconds * 3
             else:
                 self.getElem('ftc')[0].surface.Material = self.te[3]
+                if self in AllEnemies:
+                    AllEnemies.pop(AllEnemies.index(self))
         super().EventTick()
 
 class player(engine.Base.FirstPersonCharacter):
@@ -91,10 +105,19 @@ class player(engine.Base.FirstPersonCharacter):
         self.gunst = pygame.image.load("textures/gun2st_dg.png")
         self.gunst = pygame.transform.scale(self.gunst, (self.gun.get_width() // GunSize, self.gun.get_height() // GunSize))
         self.gunst = pygame.transform.scale(self.gunst, (engine.screen_width, engine.screen_height))
+        self.gun_p = [pygame.image.load("textures/gun2p0.png"), pygame.image.load("textures/gun2p1.png"), pygame.image.load("textures/gun2p2.png")]
+        for n, p in enumerate(self.gun_p):
+            self.gun_p[n] = pygame.transform.scale(pygame.transform.scale(p, (self.gun.get_width() // GunSize, self.gun.get_height() // GunSize)), (engine.screen_width, engine.screen_height))
         self.hp = 100
         tr = engine.Tracker(("player"))
         self.add({'tracker': tr})
         self.time_to_last_shot = 1
+        self.p = False
+        self.p_time = 0
+        self.p_img = [pygame.image.load("textures/patron1.png")]
+        self.num_patron = 14
+        self.num_patron_max = 14
+        self.aim = pygame.image.load("textures/aim.png")
 
     def _shot(self):
         camera_v = engine.RotationToVector(self.getElem('camera')[0].Rotation)
@@ -108,18 +131,70 @@ class player(engine.Base.FirstPersonCharacter):
 
     def EventTickAfterRendering(self):
         self.time_to_last_shot += engine.WorldDeltaSeconds
-        if pygame.mouse.get_pressed()[0] and self.time_to_last_shot > 0.35:
+        if pygame.key.get_pressed()[pygame.K_r] and not self.p:
+            self.p = True
+            self.p_time = 0
+        if pygame.mouse.get_pressed()[0] and self.time_to_last_shot > 0.35 and not self.p and self.num_patron > 0:
             self.time_to_last_shot = 0
             self._shot()
-        if self.time_to_last_shot < 0.2:
-            engine.screen.blit(self.gunst, (0, 0))
+            self.num_patron -= 1
+        if not self.p:
+            if self.time_to_last_shot < 0.2:
+                if not self.p:
+                    engine.screen.blit(self.gunst, (0, 0))
+            else:
+                engine.screen.blit(self.gun, (0, 0))
         else:
-            engine.screen.blit(self.gun, (0, 0))
+            self.p_time += engine.WorldDeltaSeconds
+            if self.p_time <= 0.2:
+                engine.screen.blit(self.gun, (0, 0))
+            elif 0.2 < self.p_time <= 0.5:
+                engine.screen.blit(self.gun_p[2], (0, 0))
+            elif 0.5 < self.p_time <= 0.8:
+                engine.screen.blit(self.gun_p[0], (0, 0))
+            elif 0.8 < self.p_time <= 1.3:
+                engine.screen.blit(self.gun_p[1], (0, 0))
+            #elif 1.4 < self.p_time <= 1.4:
+            #    engine.screen.blit(self.gun_p[0], (0, 0))
+            elif 1.3 < self.p_time <= 1.6:
+                engine.screen.blit(self.gun_p[2], (0, 0))
+                #engine.screen.blit(self.gun, (0, 0))
+            else:
+                self.num_patron= self.num_patron_max
+                self.p = False
+                engine.screen.blit(self.gun, (0, 0))
         font = pygame.font.Font(None, 56)
         text = font.render(str(self.hp), True, (255, 50, 50))
         engine.screen.blit(text, (10, engine.screen_height - 55))
+        for n in range(0, self.num_patron):
+            engine.screen.blit(self.p_img[0], (engine.screen_width - n * 8 - 12, engine.screen_height-16))
+        engine.screen.blit(self.aim, ((engine.screen_width - 32) / 2, (engine.screen_height - 32) / 2))
+
+class credits:
+    def __init__(self, black=0):
+        self.black = black
+        engine.EventTick.connection_functions_after_rendering.append(self.EventTick)
+        self.y = 0
+
+    def EventTick(self):
+        print("da")
+        self.y -= engine.WorldDeltaSeconds * 14
+        if self.black < 255: self.black += engine.WorldDeltaSeconds * 100
+        if self.black > 255: self.black = 255
+        color = (0, 0, 0, self.black)
+        s = pygame.Surface((engine.screen_width, engine.screen_height), pygame.SRCALPHA)
+        pygame.draw.rect(s, color, (0, 0, engine.screen_width, engine.screen_height))
+        engine.screen.blit(s, (0, 0))
+        cr = ('Автор движка: Слизков Максим', 'Геймдизайн: Слизков Максим', 'Level-дизайн: Слизков Максим', '3D-моделирование: Слизков Максим', 'Искуственный интелект: Слизков Максим', 'UI-дизай: Слизков Максим', 'Проджект менеджмент: Слизков Максим')
+        font = pygame.font.Font(None, 26)
+        for n, s in enumerate(cr):
+            text = font.render(s, True, (255, 255, 255))
+            print(engine.screen_height + n * 40 - self.y)
+            engine.screen.blit(text, (30, engine.screen_height + n * 34 + self.y))
 
 player = player()
+player.LocationX = -13
+player.LocationY = 25
 AllEnemies = []
 AllEnemies.append(enemy((-4, 8.5)))
 AllEnemies.append(enemy((-3.2, 10)))
@@ -157,15 +232,21 @@ i = engine.Item((2, 0.5))
 # engine.Wall(PointsLocation=((-2, -10), (-4.5, -10)), height=3, Material=bricksM2)
 # engine.Wall(PointsLocation=((-7, -10), (-5.5, -10)), height=3, Material=bricksM2)
 # engine.Wall(PointsLocation=((-7, -10), (-7, -5)), height=3, Material=bricksM2)
-mat = {'bricksM1': bricksM1, 'bricksM2': bricksM2, 'smalltilesM4': smalltilesM4, 'steelM3': steelM3, 'lamp0': lamp0}
-r = engine.OpenOBJAsMap("./maps/map1.obj", mat)
+mat = {'bricksM1': bricksM1, 'bricksM2': bricksM2, 'smalltilesM4': smalltilesM4, 'steelM3': steelM3, 'lamp0': lamp0, 'exit': exit1, 'gunonwall': gunonwall, 'gunonwall': gunonwall, 'betonM': betonM, 'closedM1': closedM1, 'canwall': canwall}
+r = engine.OpenOBJAsMap("./maps/map2.obj", mat)
 for ue in r:
     if ue[0][0] == 'door1':
         door(ue[1], float(ue[0][1]), float(ue[0][2]), float(ue[0][3]), float(ue[0][4]), float(ue[0][5]), mat[ue[0][6]], float(ue[0][7]))
 
-tr = engine.Tracker(("player",))
+#tr = engine.Tracker(("player",))
+start_credits = False
 def EventTick(): # эта функция, которая срабатывает каждый кадр, до отрисовки
     pass
+    global start_credits
+    print(len(AllEnemies))
+    if len(AllEnemies) == 0 and not start_credits:
+        credits()
+        start_credits = True
 
 
 def EventTickAfterRendering(): # эта функция, которая срабатывает каждый кадр, после отрисовки
