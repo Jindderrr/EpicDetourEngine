@@ -31,11 +31,6 @@ class door(engine.Actor):
 
     def EventTick(self):
         all = [t.Tags for t in self.getElem('detctor')[0].AllInBox() if 'player' in t.Tags]
-        print("---")
-        print(all)
-        print(self)
-        print(self.open)
-
         if len(all) > 0: self.open = True
         else: self.open = False
 
@@ -121,8 +116,11 @@ class player(engine.Base.FirstPersonCharacter):
 
     def _shot(self):
         camera_v = engine.RotationToVector(self.getElem('camera')[0].Rotation)
-        camera_v = camera_v[0] * 100, camera_v[1] * 100
+        camera_v = camera_v[0] * 100 + self.LocationX, camera_v[1] * 100 + self.LocationY
         s = engine.LineTrace((self.LocationX, self.LocationY), camera_v, collide_walls=engine.AllWallCollision)
+        print(self.getLocation())
+        print(camera_v)
+        print("----------")
         for en in AllEnemies:
             if en.getElem('ftc')[0].c_surface == s[0][0]:
                 en.hp -= random.randint(20, 75)
@@ -185,7 +183,7 @@ class credits:
         s = pygame.Surface((engine.screen_width, engine.screen_height), pygame.SRCALPHA)
         pygame.draw.rect(s, color, (0, 0, engine.screen_width, engine.screen_height))
         engine.screen.blit(s, (0, 0))
-        cr = ('Автор движка: Слизков Максим', 'Геймдизайн: Слизков Максим', 'Level-дизайн: Слизков Максим', '3D-моделирование: Слизков Максим', 'Искуственный интелект: Слизков Максим', 'UI-дизай: Слизков Максим', 'Проджект менеджмент: Слизков Максим')
+        cr = ('Автор движка: Слизков Максим', 'Геймдизайн: Слизков Максим', 'Level-дизайн: Слизков Максим', 'Персонажи: Цымбал Семён, Слизков Максим', '3D-моделирование: Слизков Максим', 'Искуственный интелект: Слизков Максим', 'UI-дизай: Слизков Максим', 'Проджект менеджмент: Слизков Максим')
         font = pygame.font.Font(None, 26)
         for n, s in enumerate(cr):
             text = font.render(s, True, (255, 255, 255))
@@ -243,7 +241,7 @@ start_credits = False
 def EventTick(): # эта функция, которая срабатывает каждый кадр, до отрисовки
     pass
     global start_credits
-    print(len(AllEnemies))
+    #print(len(AllEnemies))
     if len(AllEnemies) == 0 and not start_credits:
         credits()
         start_credits = True

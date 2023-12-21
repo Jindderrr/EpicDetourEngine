@@ -583,6 +583,7 @@ def LineTrace(StartLocation, EndLocation, collide_walls=AllWalls):
         p = IntersectionPoint(wall_collision.getPointsLocation(), (*StartLocation, *EndLocation))
         if p != None:
             walls.append((wall_collision, p))
+    walls.sort(key=lambda x: ((((x[1][0] - StartLocation[0]) ** 2) + ((x[1][1] - StartLocation[1]) ** 2)) ** 0.5))
     return walls
 
 class EventTickClass:

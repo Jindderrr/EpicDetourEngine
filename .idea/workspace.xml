@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="cb6c2681-b02d-4463-8b52-4de56da18c2e" name="Changes" comment="Version 0.3.3">
+    <list default="true" id="cb6c2681-b02d-4463-8b52-4de56da18c2e" name="Changes" comment="Version 0.3.1">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EpicDetourEngine.py" beforeDir="false" afterPath="$PROJECT_DIR$/EpicDetourEngine.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/TechDemo.pyw" beforeDir="false" afterPath="$PROJECT_DIR$/TechDemo.pyw" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/maps/map2.blend" beforeDir="false" afterPath="$PROJECT_DIR$/maps/map2.blend" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -24,6 +26,7 @@
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="UPDATE_TYPE" value="REBASE" />
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
