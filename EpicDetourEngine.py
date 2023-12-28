@@ -1,4 +1,4 @@
-# Epic Detour Engine version 0.3.2 by Maxim Slizkov
+# Epic Detour Engine version 0.4 by Maxim Slizkov
 
 import pygame
 import sys
@@ -43,6 +43,7 @@ auto_size = True
 texture_onecolor_dist = 20
 AllTrackers = []
 TextureQuality = 1
+NumActors = 0
 
 class Material():
     def __init__(self, color=(200, 230, 240), use_onecolor_texture=True, use_texture_opacity=False, opacity=1, ):
@@ -67,7 +68,6 @@ class Material():
                 g = round(g / np)
                 b = round(b / np)
                 self.onecolor = (r, g, b)
-                #print(r, g, b)
             if TextureQuality != 1:
                 self.color = pygame.transform.scale(self.color, (self.color.get_width() // TextureQuality, self.color.get_height() // TextureQuality))
 
@@ -142,59 +142,51 @@ def WallBox(Location=(0, 0), height=2, a=1, Material=Material()): # создаё
     return walls
 
 class WallCollision():
-    def __init__(self, PointsLocation=((-0.5, 0), (0.5, 0))):
+    def __init__(self, PointsLocation=((-0.5, 0), (0.5, 0)), Type="NoType"):
         self.Location1X = PointsLocation[0][0]
         self.Location1Y = PointsLocation[0][1]
         self.Location2X = PointsLocation[1][0]
         self.Location2Y = PointsLocation[1][1]
+        self.Type = Type
 
     def getPointsLocation(self):
         return ((self.Location1X,self.Location1Y), (self.Location2X, self.Location2Y))
 
-def CircleCollisionMove(CircleLocation=(0, 0), r=0.4, MoveVector= (0, 0)):
-    print("sadsa")
-    print(MoveVector)
-    print("-[--[---]--]-")
-    for wall_collision in AllWallCollision:
+def getWallCollisionByTypes(Types=('NoType')):
+    return [cw for cw in AllWallCollision if cw.Type in Types]
+
+def CircleCollisionMove(CircleLocation=(0, 0), MoveVector= (0, 0), r=0.4, CollisionWalls=AllWallCollision):
+    for wall_collision in CollisionWalls:
         wall_r = FindLookAtRotation((wall_collision.Location1X, wall_collision.Location1Y), (wall_collision.Location2X, wall_collision.Location2Y))
-        p = (RotatePointAroundPoint(ActiveCamera.getLocation(), (wall_collision.Location1X - ActiveCamera.getLocation()[0], wall_collision.Location1Y - ActiveCamera.getLocation()[1]), wall_r), RotatePointAroundPoint(ActiveCamera.getLocation(), (wall_collision.Location2X - ActiveCamera.getLocation()[0], wall_collision.Location2Y - ActiveCamera.getLocation()[1]), wall_r))
-        p = ((-p[0][0], p[0][1]), (p[1][0], p[1][1]))
-        print(p)
-        wall_r = -wall_r + 180
-        MoveVector = (-MoveVector[0] * 10, -MoveVector[1]*10)
-        #MoveRotation = (-math.sin(math.radians(wall_r + ActiveCamera.Rotation)), math.cos(math.radians(wall_r + ActiveCamera.Rotation)))
-        #rotated_MoveVector = RotatePointAroundPoint(origin=ActiveCamera.getLocation(), point=MoveVector, r=wall_r - 90)
-        rotated_MoveVector = RotatePointAroundPoint(origin=ActiveCamera.getLocation(), point=MoveVector, r=wall_r)
-        #rotated_MoveVector = (-rotated_MoveVector[0], -rotated_MoveVector[1])
-        # if p[0][0] < 0:
-        #     rotated_MoveVector = (rotated_MoveVector[0], -rotated_MoveVector[1])
-        # else:
-        #     rotated_MoveVector = (-rotated_MoveVector[0], rotated_MoveVector[1])
-        rotated_XVector = -rotated_MoveVector[0]
-        print("---")
-        print(p)
-        print(rotated_MoveVector)
-        #print(ActiveCamera.getLocation())
-
-        print("---")
-        poi = IntersectionPoint(p, (ActiveCamera.getLocation()[0], ActiveCamera.getLocation()[1], rotated_XVector, ActiveCamera.getLocation()[1]))
-        print(poi)
-        if poi != None:
-            rotated_MoveVector = poi
-        MoveVector = RotatePointAroundPoint(origin=ActiveCamera.getLocation(), point=rotated_MoveVector, r=-wall_r)
-        #print(poi)
-
-        # if poi != None:
-        #     print("[]{}")
-        #     print(poi)
-        #     poi = (poi[0], -poi[1])
-        #     rotated_MoveVector = poi
-        #     MoveVector = RotatePointAroundPoint(point=rotated_MoveVector, r=-wall_r)
-    print(MoveVector)
-    return MoveVector
+        p = ((wall_collision.Location1X - CircleLocation[0], wall_collision.Location1Y - CircleLocation[1]), (wall_collision.Location2X - CircleLocation[0], wall_collision.Location2Y - CircleLocation[1]))
+        p = (RotatePointAroundPoint((0, 0), p[0], wall_r), RotatePointAroundPoint((0, 0), p[1], wall_r))
+        p = ((p[0][0], -p[0][1]), (p[1][0], -p[1][1]))
+        wall_r = NormalizeRotation(-wall_r)
+        mv = RotatePointAroundPoint((0, 0), MoveVector, -wall_r)
+        mv = [mv[0], mv[1]]
+        x = mv[0]
+        y = mv[1]
+        if p[0][0] > 0:
+            x += r
+        else:
+            x -= r
+        if (p[0][1] < 0 < p[1][1] or p[0][1] > 0 > p[1][1]):
+        #if (abs((p[0][1] - p[1][1])) + abs(y) >= (abs(max((p[0][1], p[1][1], y + r)) - min((p[0][1], p[1][1], y - r))))):
+            if x > p[0][0] > 0 or x < p[0][0] < 0:
+                print(time.monotonic())
+                x = p[0][0]
+                mv = [x, y]
+                if x > 0:
+                    mv[0] -= r
+                else:
+                    mv[0] += r
+                mv = RotatePointAroundPoint((0, 0), mv, -wall_r)
+                MoveVector = mv
+                MoveVector = (MoveVector[0], MoveVector[1])
+    return [MoveVector[0], MoveVector[1]]
 
 class SpriteFaceToCamera():
-    def __init__(self, a=1, Height=2, OriginLocation=(0, 0), LocationZ=0, Material=CLASSIC_MATERIAL, collision=False):
+    def __init__(self, a=1, Height=2, OriginLocation=(0, 0), LocationZ=0, Material=CLASSIC_MATERIAL, collision=False, collisionType='NoType'):
         self.LocationX = OriginLocation[0]
         self.LocationY = OriginLocation[1]
         self.Height = Height
@@ -205,7 +197,7 @@ class SpriteFaceToCamera():
         self.surface = Wall(((-a/2 + OriginLocation[0], 0 + OriginLocation[1]), (a/2 + OriginLocation[0], 0 + OriginLocation[1])), Height, Material=Material, LocationZ=LocationZ, collision=False)
         self.c_surface = None
         if collision:
-            self.c_surface = WallCollision(((-a/2 + OriginLocation[0], 0 + OriginLocation[1]), (a/2 + OriginLocation[0], 0 + OriginLocation[1])))
+            self.c_surface = WallCollision(((-a/2 + OriginLocation[0], 0 + OriginLocation[1]), (a/2 + OriginLocation[0], 0 + OriginLocation[1])), collisionType)
             AllWallCollision.append(self.c_surface)
         AllSpriteFaceToCamera.append(self)
         self.LocationZ = LocationZ
@@ -335,8 +327,12 @@ class Actor():
                 EventTick.connection_functions_after_rendering.append(self.EventTickAfterRendering)
             except BaseException as e:
                 print(e)
+        global NumActors
+        NumActors += 1
+        self.add(Elements)
 
     def add(self, Elements):
+        r_elems = []
         for elem in Elements:
             if type(Elements[elem]) in (Item, Camera):
                 self.AllElements[elem] = [Elements[elem], (Elements[elem].LocationX, Elements[elem].LocationY, Elements[elem].LocationZ, Elements[elem].Rotation)]
@@ -346,8 +342,9 @@ class Actor():
                 self.AllElements[elem] = [Elements[elem], (Elements[elem].LocationX, Elements[elem].LocationY, Elements[elem].LocationZ)]
             elif type(Elements[elem]) == Tracker:
                 self.AllElements[elem] = [Elements[elem], (Elements[elem].LocationX, Elements[elem].LocationY)]
-
+            else: r_elems.append(elem)
         self.Update()
+        return r_elems
 
     def getLocation(self):
         return self.LocationX, self.LocationY
@@ -367,6 +364,8 @@ class Actor():
             self.AllElements[name][1] = (Location[0], Location[1], self.AllElements[name][1][2])
         elif type(self.AllElements[name][0]) == Tracker:
             self.AllElements[name][1] = (Location[0], Location[1])
+        else:
+            return 'sam davay'
         self.Update()
 
     def Move(self, v=(0,0)):
@@ -381,11 +380,10 @@ class Actor():
     def getElem(self, name):
         return self.AllElements[name]
 
-    def Update(self, r=0):
+    def Update(self):
+        r_elems = []
         for elem in self.AllElements:
             elemRef = self.AllElements[elem][0]
-            elemX = self.AllElements[elem][1][0] + self.LocationX
-            elemY = self.AllElements[elem][1][1] + self.LocationY
             elemX, elemY = RotatePointAroundPoint(self.getLocation(), (self.AllElements[elem][1][0], self.AllElements[elem][1][1]), self.Rotation)
             if type(elemRef) in (Item, Camera):
                 elemRef.LocationX = elemX
@@ -405,6 +403,24 @@ class Actor():
             elif type(self.AllElements[elem][0]) == Tracker:
                 elemRef.LocationX = elemX
                 elemRef.LocationY = elemY
+            else: r_elems.append(elem)
+        return r_elems
+
+    def Destroy(self):
+        for eln in self.AllElements:
+            elr = self.AllElements[eln][0]
+            if type(elr) == SpriteFaceToCamera:
+                AllSpriteFaceToCamera.pop(AllSpriteFaceToCamera.index(elr))
+                for n, wall in enumerate(AllWalls):
+                    if wall == elr.surface:
+                        AllWalls.pop(n)
+                        break
+            try:
+                EventTick.connection_functions.pop(EventTick.connection_functions.index(self.EventTick))
+            except:
+                ...
+        global NumActors
+        NumActors -= 1
 
 class Tracker():
     def __init__(self, Tags=[]):
@@ -430,14 +446,18 @@ class InBoxDetector():
 
 class Base():
     class Character(Actor):
-        def __init__(self, originLocation=(0, 0), GenerateEventTickAfterRendering=False):
+        def __init__(self, originLocation=(0, 0), GenerateEventTickAfterRendering=False, CollisionWith=('NoType')):
             super().__init__(originLocation=originLocation, GenerateEventTickAfterRendering=GenerateEventTickAfterRendering)
             self.RightMove = 0
             self.ForwardMove = 0
-            self.MoveVector = [0, 1]
+            self.MoveVector = [0, 0]
+            self.CollisionWith = CollisionWith
 
         def EventTick(self):
             cs = 30
+            self.MoveVector = [self.MoveVector[0] * WorldDeltaSeconds, self.MoveVector[1] * WorldDeltaSeconds]
+            self.MoveVector = CircleCollisionMove(CircleLocation=self.getLocation(), MoveVector=(self.MoveVector[0], self.MoveVector[1]), CollisionWalls=getWallCollisionByTypes(self.CollisionWith))
+            self.MoveVector = [self.MoveVector[0] / WorldDeltaSeconds, self.MoveVector[1] / WorldDeltaSeconds]
             self.LocationX += self.MoveVector[0] * WorldDeltaSeconds
             self.LocationY += self.MoveVector[1] * WorldDeltaSeconds
             for n in range(2):
@@ -458,15 +478,16 @@ class Base():
             ActiveCamera = self.camera
             super().__init__(GenerateEventTickAfterRendering=True)
             self.add({'camera': self.camera})
+
         def EventTick(self):
-            fs = 4
-            rs = 3
+            m = int(pygame.key.get_pressed()[pygame.K_LSHIFT]) * 0.6 + 1
+            fs = 4 * m
+            rs = 3 * m
             forward_vector = RotationToVector(self.camera.Rotation)
             forward_vector = [forward_vector[0] * fs, forward_vector[1] * fs]
             right_vector = RotationToVector(self.camera.Rotation - 90)
             right_vector = [right_vector[0] * rs, right_vector[1] * rs]
             if pygame.key.get_pressed()[pygame.K_w]:
-                # v = CircleCollisionMove(self.camera.getLocation(), MoveVector=(forward_vector[0], forward_vector[1]))
                 self.MoveVector = [forward_vector[0], forward_vector[1]]
             if pygame.key.get_pressed()[pygame.K_s]:
                 self.MoveVector = [-forward_vector[0], -forward_vector[1]]
@@ -639,6 +660,8 @@ def Run():
             rt = time.monotonic() - rt
         else:
             print("ActiveCamera is not defined or is not <class 'Camera'>. ActiveCamera class:", type(ActiveCamera))
+            rt = 0
+            screen.fill("white")
         EventTick.tick_after_rendering()
         if TypeOfStatistics == 1:
             font = pygame.font.Font(None, 36)
@@ -662,7 +685,9 @@ def Run():
                      f'Sprites: {len(AllSpriteFaceToCamera)}',
                      f'Walls and Sprites for render: {NumOfWallsForRender}',
                      f'Render width: {render_width}/{screen_width} ({size})',
-                     f'Render time: {int(rt * 1000)}ms']
+                     f'Render time: {int(rt * 1000)}ms',
+                     f'EventTick: {len(EventTick.connection_functions)}, after rendering: {len(EventTick.connection_functions_after_rendering)}',
+                     f'Actors: {NumActors}']
             for y, text in enumerate(texts):
                 screen.blit(font.render(text, True, (200, 230, 240)), (10, (y*18) + 8))
         pygame.display.flip()
