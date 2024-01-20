@@ -1,4 +1,4 @@
-# NuclearNight by Maxim Slizkov at 26.12.2023
+# NuclearNight by Maxim Slizkov at 20.01.2024
 
 import EpicDetourEngine as engine
 import pygame, random
@@ -87,8 +87,9 @@ class door(engine.Actor):
 
 class enemy(engine.Base.Character):
     def __init__(self, originLocation=(0, 0)):
-        self.te = [engine.Material("textures/texture6.png"), engine.Material("textures/texture6st.png"), engine.Material("textures/texture6d1-1.png"), engine.Material("textures/texture6df1.png")]
-        ftc = engine.SpriteFaceToCamera(Height=2, Material=self.te[0], collision=True, collisionType='enemy')
+        #self.te = [engine.Material("textures/texture6.png"), engine.Material("textures/texture6st.png"), engine.Material("textures/texture6d1-1.png"), engine.Material("textures/texture6df1.png")]
+        self.te = [engine.Material("textures/wolf4_2.png"), engine.Material("textures/wolf4.png"), engine.Material("textures/wolf5.png"), engine.Material("textures/trup.png")]
+        ftc = engine.SpriteFaceToCamera(Height=2.5, Material=self.te[0], collision=True, collisionType='enemy')
         super().__init__(originLocation=originLocation)
         self.add({'ftc': ftc})
         self.fire = False
@@ -128,7 +129,7 @@ class PlayerClass(engine.Base.FirstPersonCharacter):
     def __init__(self):
         super().__init__()
         self.CollisionWith = ('NoType', 'enemy')
-        GunSize = 4
+        GunSize = 3
         self.gun = pygame.image.load("textures/gun2_dg.png")
         self.gun = pygame.transform.scale(self.gun, (self.gun.get_width() // GunSize, self.gun.get_height() // GunSize))
         self.gun = pygame.transform.scale(self.gun, (engine.screen_width, engine.screen_height))
@@ -163,6 +164,12 @@ class PlayerClass(engine.Base.FirstPersonCharacter):
                     engine.AllWallCollision.pop(engine.AllWallCollision.index(en.getElem('ftc')[0].c_surface))
 
     def EventTickAfterRendering(self):
+        if self.hp <= 0:
+            self.hp = 0
+            global start_credits
+            if not start_credits:
+                credits()
+                start_credits = True
         self.time_to_last_shot += engine.WorldDeltaSeconds
         if self.available_weapons[self.selected_weapon]:
             if pygame.key.get_pressed()[pygame.K_r] and not self.p:
@@ -245,6 +252,7 @@ class credits:
         self.black = black
         engine.EventTick.connection_functions_after_rendering.append(self.EventTick)
         self.y = 0
+        player.EnableInput = False
 
     def EventTick(self):
         self.y -= engine.WorldDeltaSeconds * 14
@@ -391,7 +399,7 @@ class map0:
         engine.EventTick.connection_functions.append(self.EventTick)
         TooltipManager.UpdateTooltip('Используйте WASD для передвижения.')
         FrontDoor = door((-1.2, -1), 0, 3, 0, 0.5, 2.4, steelM3, AutoOpen=False)
-        self.OpenFrontDoorButton(door=FrontDoor, Rotation=60)
+        self.OpenFrontDoorButton(door=FrontDoor, Rotation=0)
 
     def EventTick(self): # эта функция, которая срабатывает каждый кадр, до отрисовки, на карте map0
         global start_credits
@@ -407,9 +415,10 @@ class map0:
     class OpenFrontDoorButton(Actor):
         def __init__(self, Location=(0, 0), Rotation=(0, 0), size=0.4, door=None):
             self.t = [engine.Material("textures/map2/texture_button_np.png"), engine.Material("textures/map2/texture_button_p.png")]
-            uw = UsableWall(parent=self, size=size)
+            uw = UsableWall(parent=self, size=size, Location=Location)
             sf = engine.Item()
-            self.sf_wall = engine.Wall(PointsLocation=((-size / 2, 0), (size / 2, 0)), Material=self.t[0], collision=False, LocationZ=1.1, height=size)
+            print(Location)
+            self.sf_wall = engine.Wall(PointsLocation=((-size / 2 + Location[0], 0 + Location[1]), (size / 2 + Location[0], 0 + Location[1])), Material=self.t[0], collision=False, LocationZ=1.1, height=size)
             sf.addWall(self.sf_wall)
             super().__init__(originLocation=Location, Rotation=Rotation, Elements={'usable_surface': uw, 'surface': sf}, GenerateEventTick=False)
             self.door = door
@@ -432,11 +441,8 @@ start_credits = False
 pygame.display.set_caption("Nuclear Night")
 pygame.mouse.set_visible(True)
 
-mmb_newgame = Button(font=36, color=(0, 0, 0), location=(10, 300), text='Новая игра', move=True)
-mmb_endlessmode = Button(font=36, color=(0, 0, 0), location=(10, 335), text='Бесконечный режим', move=True)
-mmb_settings = Button(font=36, color=(0, 0, 0), location=(10, 370), text='Настройки', move=True)
-mmb_credits = Button(font=36, color=(0, 0, 0), location=(10, 405), text='Титры', move=True)
-mmb_exit = Button(font=36, color=(0, 0, 0), location=(10, 440), text='Выход', move=True)
+mmb_newgame = Button(font=36, color=(0, 0, 0), location=(10, 400), text='Новая игра', move=True)
+mmb_exit = Button(font=36, color=(0, 0, 0), location=(10, 450), text='Выход', move=True)
 InMainMenu = True
 
 player = None
@@ -458,15 +464,16 @@ def EventTickAfterRendering():
             print('new game!')
             InMainMenu = False
             NewGame()
-        if mmb_endlessmode.EventTick():
-            print('new game!')
-        if mmb_settings.EventTick():
-            print('new game!')
-        if mmb_credits.EventTick():
-            print('new game!')
         if mmb_exit.EventTick():
-            print('new game!')
+            print('exit')
+            engine.running = False
 
 
 engine.EventTick.connection_functions_after_rendering.append(EventTickAfterRendering) # делаем так,что-бы EventTickAfterRendering() вызывался каждый кадр, после отрисовки
+total_sum = 0
+for num in range(1000, 10000):
+    if sum(int(digit) for digit in str(num)) == 20:
+        total_sum += num
+print(total_sum)
+print("dasda:")
 engine.Run() # запускаем движок

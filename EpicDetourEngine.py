@@ -1,4 +1,4 @@
-# Epic Detour Engine version 0.4 by Maxim Slizkov
+# Epic Detour Engine version 0.4.1 by Maxim Slizkov
 
 import pygame
 import sys
@@ -11,7 +11,7 @@ pygame.init()
 
 screen_width = 800
 screen_height = 600
-size = 3
+size = 2
 
 FullScreen = False
 if FullScreen:
@@ -478,6 +478,7 @@ class Base():
             ActiveCamera = self.camera
             super().__init__(GenerateEventTickAfterRendering=True)
             self.add({'camera': self.camera})
+            self.EnableInput = True
 
         def EventTick(self):
             m = int(pygame.key.get_pressed()[pygame.K_LSHIFT]) * 0.6 + 1
@@ -487,16 +488,17 @@ class Base():
             forward_vector = [forward_vector[0] * fs, forward_vector[1] * fs]
             right_vector = RotationToVector(self.camera.Rotation - 90)
             right_vector = [right_vector[0] * rs, right_vector[1] * rs]
-            if pygame.key.get_pressed()[pygame.K_w]:
-                self.MoveVector = [forward_vector[0], forward_vector[1]]
-            if pygame.key.get_pressed()[pygame.K_s]:
-                self.MoveVector = [-forward_vector[0], -forward_vector[1]]
-            if pygame.key.get_pressed()[pygame.K_d]:
-                self.MoveVector = [right_vector[0], right_vector[1]]
-            if pygame.key.get_pressed()[pygame.K_a]:
-                self.MoveVector = [-right_vector[0], -right_vector[1]]
-            self.Rotation += (screen.get_width() // 2 - pygame.mouse.get_pos()[0]) / 12
-            pygame.mouse.set_pos((screen.get_width() // 2, screen.get_height() // 2))
+            if self.EnableInput:
+                if pygame.key.get_pressed()[pygame.K_w]:
+                    self.MoveVector = [forward_vector[0], forward_vector[1]]
+                if pygame.key.get_pressed()[pygame.K_s]:
+                    self.MoveVector = [-forward_vector[0], -forward_vector[1]]
+                if pygame.key.get_pressed()[pygame.K_d]:
+                    self.MoveVector = [right_vector[0], right_vector[1]]
+                if pygame.key.get_pressed()[pygame.K_a]:
+                    self.MoveVector = [-right_vector[0], -right_vector[1]]
+                self.Rotation += (screen.get_width() // 2 - pygame.mouse.get_pos()[0]) / 12
+                pygame.mouse.set_pos((screen.get_width() // 2, screen.get_height() // 2))
             super().EventTick()
 
 def LinePrint(ray_rotation, r, walls_for_render=None):
@@ -630,11 +632,12 @@ class EventTickClass:
 
 EventTick = EventTickClass()
 GlobalEvents = []
+running = True
 
 
 def Run():
     TypeOfStatistics = 0
-    running = True
+    global running
     while running:
         global WorldDeltaSeconds, GlobalEvents, render_width, render_height, size
         LastFrame = time.monotonic()
